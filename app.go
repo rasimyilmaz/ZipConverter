@@ -6,14 +6,27 @@ import (
     "os"
     "log"
     "time"
-    "path/filepath"
+	"path/filepath"
+	"encoding/json"
+	"io/ioutil"
+	"golang.org/x/sys/windows/svc/eventlog"
+	"fmt"
+	"github.com/carlescere/scheduler"
 )
 var (
     yesterday string 
     yesterdayFilename string 
     yesterdayZipFilename string
-    currentPath string 
+	currentPath string
+	currentSetting Setting
+	settingFilename string
 )
+//Setting is configuration parameters
+type Setting struct {
+	location string `json: "location"`
+	username string `json: "username"`
+	password string `json: "username"`
+}
 //CheckFileExists returns Exists , NotExists , DontKnow
 func CheckFileExists(filename string) (string){
     if _, err := os.Stat(filename); err == nil {
@@ -24,16 +37,50 @@ func CheckFileExists(filename string) (string){
         return "DontKnow"
       }
 }
-func main() {
+func initialize(){
+	const name = "ZipConverter"
+	elog, err := eventlog.Open(name)
+	if (err!=nil){
+		log.Println("Event logger could not open.")
+	}
     dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		log.Println(err)
+		elog.Warning(1,err.Error())
 	} else {
     	currentPath = dir 
-    }
+	}
+	settingFilename=filepath.Join(currentPath, "setting.json")
+	logFilename := filepath.Join(dir, name+".log")
+	f, err := os.OpenFile(logFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		elog.Info(1, fmt.Sprintf("Error opening file: %v", err))
+	} else {
+		log.SetOutput(f)
+	}
+	defer f.Close()
+	elog.Warning(0,name +" is started.")
+}
+func getSetting(){
+	file, err := ioutil.ReadFile(settingFilename)
+	err = json.Unmarshal([]byte(file), &currentSetting)
+	if err != nil {
+		elog.Warning(2, err.Error())
+	}
+}
+func finalize(){
+	err:=elog.Close()
+	if (err!=nil){
+		log.Println(err.Error)
+		elog.Warning(0,"Program is end.")
+	}
+}
+func cycle() {
+	t := time.Now()
+	elog.Warning(1,fmt.Sprintln("Program is executing ", t.Local()))
+	getSetting()
     yesterday=time.Now().AddDate(0,0,-1).Format("2006-01-02")
-    yesterdayFilename= yesterday + ".txt"
-    yesterdayZipFilename= yesterday+".zip"
+    yesterdayFilename= filepath.Join(currentSetting.location, yesterday + ".txt")
+    yesterdayZipFilename= filepath.Join(currentSetting.location,yesterday+".zip")
 	// List of Files to Zip
 	files := []string{yesterdayFilename}
 	output :=  yesterdayZipFilename
@@ -57,7 +104,6 @@ func main() {
 // Param 1: filename is the output zip file's name.
 // Param 2: files is a list of files to add to the zip.
 func ZipFiles(filename string, files []string) error {
-
 	newZipFile, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -109,4 +155,11 @@ func AddFileToZip(zipWriter *zip.Writer, filename string) error {
 	}
 	_, err = io.Copy(writer, fileToZip)
 	return err
+}
+func serve(closesignal chan int) {
+	initialize()
+	//scheduler.Every().Day().At("0:01").Run(cycle)
+	scheduler.Every().Minutes().Run(cycle)
+	<-closesignal
+	finalize()
 }

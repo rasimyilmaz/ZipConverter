@@ -18,10 +18,10 @@ func usage(errmsg string) {
 		errmsg, os.Args[0])
 	os.Exit(2)
 }
+const svcName = "ZipConverter"
 
 //main start
 func main() {
-	const svcName = "HotspotSyncWin"
 
 	isIntSess, err := svc.IsAnInteractiveSession()
 	if err != nil {
@@ -42,7 +42,7 @@ func main() {
 		runService(svcName, true)
 		return
 	case "install":
-		err = installService(svcName, "Mikrotik Hotspot Sync Client")
+		err = installService(svcName, "Zip Converter Service , Zips files and deletes oldies.")
 	case "remove":
 		err = removeService(svcName)
 	case "start":

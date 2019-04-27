@@ -2,102 +2,108 @@ package main
 
 import (
 	"archive/zip"
-	"io"
-    "os"
-    "log"
-    "time"
-	"path/filepath"
 	"encoding/json"
-	"io/ioutil"
-	"golang.org/x/sys/windows/svc/eventlog"
 	"fmt"
-	"github.com/carlescere/scheduler"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
 )
+
 var (
-    yesterday string 
-    yesterdayFilename string 
-    yesterdayZipFilename string
-	currentPath string
-	currentSetting Setting
-	settingFilename string
+	yesterday            string
+	yesterdayFilename    string
+	yesterdayZipFilename string
+	currentPath          string
+	currentSetting       Setting
+	settingFilename      string
 )
+
 //Setting is configuration parameters
 type Setting struct {
-	location string `json: "location"`
-	username string `json: "username"`
-	password string `json: "username"`
+	Location string `json: "Location"`
+	Username string `json: "Username"`
+	Password string `json: "Password"`
 }
+
 //CheckFileExists returns Exists , NotExists , DontKnow
-func CheckFileExists(filename string) (string){
-    if _, err := os.Stat(filename); err == nil {
-        return "Exists"      
-      } else if os.IsNotExist(err) {
-        return "NotExists"
-      } else {
-        return "DontKnow"
-      }
-}
-func initialize(){
-	const name = "ZipConverter"
-	elog, err := eventlog.Open(name)
-	if (err!=nil){
-		log.Println("Event logger could not open.")
-	}
-    dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		elog.Warning(1,err.Error())
+func CheckFileExists(filename string) string {
+	if _, err := os.Stat(filename); err == nil {
+		return "Exists"
+	} else if os.IsNotExist(err) {
+		return "NotExists"
 	} else {
-    	currentPath = dir 
+		return "DontKnow"
 	}
-	settingFilename=filepath.Join(currentPath, "setting.json")
-	logFilename := filepath.Join(dir, name+".log")
+}
+func initialize() {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		elog.Warning(1, err.Error())
+	} else {
+		currentPath = dir
+	}
+	settingFilename = filepath.Join(currentPath, "setting.json")
+	logFilename := filepath.Join(currentPath, svcName+".log")
 	f, err := os.OpenFile(logFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		elog.Info(1, fmt.Sprintf("Error opening file: %v", err))
 	} else {
+		log.Printf(svcName + " is started.")
 		log.SetOutput(f)
 	}
 	defer f.Close()
-	elog.Warning(0,name +" is started.")
+	elog.Info(1, svcName+" is started.")
 }
-func getSetting(){
+func getSetting() {
 	file, err := ioutil.ReadFile(settingFilename)
 	err = json.Unmarshal([]byte(file), &currentSetting)
 	if err != nil {
 		elog.Warning(2, err.Error())
+	} else {
+		elog.Info(1, fmt.Sprintf("Location : %s , Username : %s , Password : %s", currentSetting.Location, currentSetting.Username, currentSetting.Password))
 	}
 }
-func finalize(){
-	err:=elog.Close()
-	if (err!=nil){
-		log.Println(err.Error)
-		elog.Warning(0,"Program is end.")
-	}
+func finalize() {
+	log.Println("Program is ended.")
 }
 func cycle() {
-	t := time.Now()
-	elog.Warning(1,fmt.Sprintln("Program is executing ", t.Local()))
-	getSetting()
-    yesterday=time.Now().AddDate(0,0,-1).Format("2006-01-02")
-    yesterdayFilename= filepath.Join(currentSetting.location, yesterday + ".txt")
-    yesterdayZipFilename= filepath.Join(currentSetting.location,yesterday+".zip")
-	// List of Files to Zip
-	files := []string{yesterdayFilename}
-	output :=  yesterdayZipFilename
-    if (CheckFileExists(yesterdayFilename) == "NotExists"){
-        log.Println(yesterdayFilename + " dosyası yok.")
-    } else {
-        if (CheckFileExists(yesterdayZipFilename) == "Exists"){
-            log.Println(yesterdayZipFilename + " dosyası zaten mevcut.")
-        } else {
-            if err := ZipFiles(output, files); err != nil {
-                log.Println(err.Error())
-            }else {
-                log.Println("Zip dosyası hazır:", output)
-                os.Remove(yesterdayFilename)
-            }
-        }
-    }
+	var restSecondToNewDay, todaySpentSecond int
+	var t time.Time
+	var d time.Duration
+	for {
+		t = time.Now()
+		todaySpentSecond = t.Hour()*3600 + t.Minute()*60 + t.Second()
+		restSecondToNewDay = (24*60*60 - todaySpentSecond) + 10
+		d = time.Duration(restSecondToNewDay) * time.Second
+		//time.Sleep(d)
+		elog.Info(1, fmt.Sprintln(d, " seconds for executing."))
+		time.Sleep(time.Duration(10) * time.Second)
+		elog.Info(1, fmt.Sprintln("Program is executing ", t.Local()))
+		getSetting()
+		yesterday = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+		yesterdayFilename = filepath.Join(currentSetting.Location, yesterday+".txt")
+		yesterdayZipFilename = filepath.Join(currentSetting.Location, yesterday+".zip")
+		// List of Files to Zip
+		files := []string{yesterdayFilename}
+		output := yesterdayZipFilename
+		if CheckFileExists(yesterdayFilename) == "NotExists" {
+			elog.Info(1, fmt.Sprintf("%s dosyası yok.", yesterdayFilename))
+		} else {
+			if CheckFileExists(yesterdayZipFilename) == "Exists" {
+				elog.Info(1, fmt.Sprintf("%s dosyası zaten mevcut.", yesterdayZipFilename))
+			} else {
+				if err := ZipFiles(output, files); err != nil {
+					elog.Info(1, fmt.Sprintln(err.Error()))
+				} else {
+					elog.Info(1, fmt.Sprintf("Zip dosyası hazır: %s", output))
+					os.Remove(yesterdayFilename)
+				}
+			}
+		}
+	}
 }
 
 // ZipFiles compresses one or many files into a single zip archive file.
@@ -121,6 +127,7 @@ func ZipFiles(filename string, files []string) error {
 	}
 	return nil
 }
+
 //AddFileToZip save writer to file
 func AddFileToZip(zipWriter *zip.Writer, filename string) error {
 
@@ -158,8 +165,7 @@ func AddFileToZip(zipWriter *zip.Writer, filename string) error {
 }
 func serve(closesignal chan int) {
 	initialize()
-	//scheduler.Every().Day().At("0:01").Run(cycle)
-	scheduler.Every().Minutes().Run(cycle)
+	go cycle()
 	<-closesignal
 	finalize()
 }

@@ -75,7 +75,7 @@ func ZipFiles(filename string, files []string) error {
 	}
 	return nil
 }
-
+//AddFileToZip save writer to file
 func AddFileToZip(zipWriter *zip.Writer, filename string) error {
 
 	fileToZip, err := os.Open(filename)

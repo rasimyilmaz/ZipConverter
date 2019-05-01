@@ -90,20 +90,19 @@ func cycle() {
 		getSetting()
 		yesterday = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 		yesterdayTxt = yesterday+".txt"
-		yesterdayFilename = filepath.Join(currentSetting.Location, )
+		yesterdayFilename = filepath.Join(currentSetting.Location,yesterdayTxt )
 		yesterdayZip = yesterday + ".zip"
 		yesterdayZipFilename = filepath.Join(currentSetting.Location, yesterdayZip)
-		output := yesterdayZipFilename
 		if CheckFileExists(yesterdayFilename) == "NotExists" {
 			elog.Info(1, fmt.Sprintf("%s dosyası yok.", yesterdayFilename))
 		} else {
 			if CheckFileExists(yesterdayZipFilename) == "Exists" {
 				elog.Info(1, fmt.Sprintf("%s dosyası zaten mevcut.", yesterdayZipFilename))
 			} else {
-				if err := ZipFile(output, currentSetting.Location, yesterdayTxt); err != nil {
+				if err := ZipFile(yesterdayZipFilename, currentSetting.Location, yesterdayTxt); err != nil {
 					elog.Info(1, fmt.Sprintln(err.Error()))
 				} else {
-					elog.Info(1, fmt.Sprintf("Zip dosyası hazır: %s", output))
+					elog.Info(1, fmt.Sprintf("Zip dosyası hazır: %s", yesterdayZipFilename))
 					os.Remove(yesterdayFilename)
 					makeTimeStamp()
 				}

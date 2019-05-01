@@ -17,6 +17,7 @@ import (
 var (
 	yesterday            string
 	yesterdayZip         string
+	yesterdayTxt		 string 
 	yesterdayFilename    string
 	yesterdayZipFilename string
 	currentPath          string
@@ -88,7 +89,8 @@ func cycle() {
 		elog.Info(1, fmt.Sprintln("Program is executing ", t.Local()))
 		getSetting()
 		yesterday = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-		yesterdayFilename = filepath.Join(currentSetting.Location, yesterday+".txt")
+		yesterdayTxt = yesterday+".txt"
+		yesterdayFilename = filepath.Join(currentSetting.Location, )
 		yesterdayZip = yesterday + ".zip"
 		yesterdayZipFilename = filepath.Join(currentSetting.Location, yesterdayZip)
 		output := yesterdayZipFilename
@@ -98,7 +100,7 @@ func cycle() {
 			if CheckFileExists(yesterdayZipFilename) == "Exists" {
 				elog.Info(1, fmt.Sprintf("%s dosyası zaten mevcut.", yesterdayZipFilename))
 			} else {
-				if err := ZipFile(output, currentSetting.Location, yesterdayZip); err != nil {
+				if err := ZipFile(output, currentSetting.Location, yesterdayTxt); err != nil {
 					elog.Info(1, fmt.Sprintln(err.Error()))
 				} else {
 					elog.Info(1, fmt.Sprintf("Zip dosyası hazır: %s", output))

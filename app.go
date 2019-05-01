@@ -66,7 +66,7 @@ func getSetting() {
 	if err != nil {
 		elog.Warning(2, err.Error())
 	} else {
-		elog.Info(1, fmt.Sprintf("Location : %s , Username : %s , Password : %s", currentSetting.Location, currentSetting.Username, currentSetting.Password))
+		elog.Info(1, fmt.Sprintf("Location : %s , ZamaneUsername : %s , ZamanePassword : %s", currentSetting.Location, currentSetting.ZamaneUsername, currentSetting.ZamanePassword))
 	}
 }
 func finalize() {
@@ -103,6 +103,7 @@ func cycle() {
 				} else {
 					elog.Info(1, fmt.Sprintf("Zip dosyası hazır: %s", output))
 					os.Remove(yesterdayFilename)
+					makeTimeStamp()
 				}
 			}
 		}

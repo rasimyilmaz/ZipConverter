@@ -2,20 +2,21 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"bytes"
-	"os/exec"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
 
 var (
 	yesterday            string
+	yesterdayZip         string
 	yesterdayFilename    string
 	yesterdayZipFilename string
 	currentPath          string
@@ -25,7 +26,7 @@ var (
 
 //Setting is configuration parameters
 type Setting struct {
-	Location string `json: "Location"`
+	Location       string `json: "Location"`
 	ZamaneUsername string `json: "ZamaneUsername"`
 	ZamanePassword string `json: "ZamanePassword"`
 	ZamaneFilename string `json: "ZamaneFilename"`
@@ -88,9 +89,8 @@ func cycle() {
 		getSetting()
 		yesterday = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 		yesterdayFilename = filepath.Join(currentSetting.Location, yesterday+".txt")
-		yesterdayZipFilename = filepath.Join(currentSetting.Location, yesterday+".zip")
-		// List of Files to Zip
-		files := []string{yesterdayFilename}
+		yesterdayZip = yesterday + ".zip"
+		yesterdayZipFilename = filepath.Join(currentSetting.Location, yesterdayZip)
 		output := yesterdayZipFilename
 		if CheckFileExists(yesterdayFilename) == "NotExists" {
 			elog.Info(1, fmt.Sprintf("%s dosyası yok.", yesterdayFilename))
@@ -98,7 +98,7 @@ func cycle() {
 			if CheckFileExists(yesterdayZipFilename) == "Exists" {
 				elog.Info(1, fmt.Sprintf("%s dosyası zaten mevcut.", yesterdayZipFilename))
 			} else {
-				if err := ZipFiles(output, files); err != nil {
+				if err := ZipFile(output, currentSetting.Location, yesterdayZip); err != nil {
 					elog.Info(1, fmt.Sprintln(err.Error()))
 				} else {
 					elog.Info(1, fmt.Sprintf("Zip dosyası hazır: %s", output))
@@ -113,8 +113,8 @@ func cycle() {
 // ZipFiles compresses one or many files into a single zip archive file.
 // Param 1: filename is the output zip file's name.
 // Param 2: files is a list of files to add to the zip.
-func ZipFiles(filename string, files []string) error {
-	newZipFile, err := os.Create(filename)
+func ZipFile(zipfilename string, path string, filename string) error {
+	newZipFile, err := os.Create(zipfilename)
 	if err != nil {
 		return err
 	}
@@ -124,16 +124,16 @@ func ZipFiles(filename string, files []string) error {
 	defer zipWriter.Close()
 
 	// Add files to zip
-	for _, file := range files {
-		if err = AddFileToZip(zipWriter, file); err != nil {
-			return err
-		}
+
+	if err = AddFileToZip(zipWriter, path, filename); err != nil {
+		return err
 	}
+
 	return nil
 }
 
 //AddFileToZip save writer to file
-func AddFileToZip(zipWriter *zip.Writer, filename string) error {
+func AddFileToZip(zipWriter *zip.Writer, path string, filename string) error {
 
 	fileToZip, err := os.Open(filename)
 	if err != nil {
@@ -173,51 +173,51 @@ func serve(closesignal chan int) {
 	<-closesignal
 	finalize()
 }
-func makeTimeStamp(){
-	_,err:=copyZamane()
-	if (err!=nil){
-		elog.Warning(2,"Error occurred while copying "+ currentSetting.ZamaneFilename + "file." + err.Error())
+func makeTimeStamp() {
+	_, err := copyZamane()
+	if err != nil {
+		elog.Warning(2, "Error occurred while copying "+currentSetting.ZamaneFilename+"file."+err.Error())
 	}
-	cmd := exec.Command("java","-jar",currentSetting.ZamaneFilename,"-Z",yesterday+".zip","http://zd.kamusm.gov.tr","80",currentSetting.ZamaneUsername,currentSetting.ZamanePassword,"sha-256")
+	cmd := exec.Command("java", "-jar", currentSetting.ZamaneFilename, "-Z", yesterdayZip, "http://zd.kamusm.gov.tr", "80", currentSetting.ZamaneUsername, currentSetting.ZamanePassword, "sha-256")
 	cmd.Dir = currentSetting.Location
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err = cmd.Run()
 	if err != nil {
-		elog.Warning(2,"Error occurred while executing java based jar file." + err.Error())
+		elog.Warning(2, "Error occurred while executing java based jar file."+err.Error())
 	} else {
-		elog.Info(2,"Zamane command response as :"+ out.String())
+		elog.Info(2, "Zamane command response as :"+out.String())
 	}
 }
-func copyZamane()(int64, error){
-	dst :=filepath.Join(currentSetting.Location,currentSetting.ZamaneFilename)
-	src :=filepath.Join(currentPath,currentSetting.ZamaneFilename)
-	if (CheckFileExists(dst) =="NotExists"){
-		return copy(src,dst)
-	} 
-	return 0,nil
+func copyZamane() (int64, error) {
+	dst := filepath.Join(currentSetting.Location, currentSetting.ZamaneFilename)
+	src := filepath.Join(currentPath, currentSetting.ZamaneFilename)
+	if CheckFileExists(dst) == "NotExists" {
+		return copy(src, dst)
+	}
+	return 0, nil
 }
 func copy(src, dst string) (int64, error) {
-        sourceFileStat, err := os.Stat(src)
-        if err != nil {
-                return 0, err
-        }
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return 0, err
+	}
 
-        if !sourceFileStat.Mode().IsRegular() {
-                return 0, fmt.Errorf("%s is not a regular file", src)
-        }
+	if !sourceFileStat.Mode().IsRegular() {
+		return 0, fmt.Errorf("%s is not a regular file", src)
+	}
 
-        source, err := os.Open(src)
-        if err != nil {
-                return 0, err
-        }
-        defer source.Close()
+	source, err := os.Open(src)
+	if err != nil {
+		return 0, err
+	}
+	defer source.Close()
 
-        destination, err := os.Create(dst)
-        if err != nil {
-                return 0, err
-        }
-        defer destination.Close()
-        nBytes, err := io.Copy(destination, source)
-        return nBytes, err
+	destination, err := os.Create(dst)
+	if err != nil {
+		return 0, err
+	}
+	defer destination.Close()
+	nBytes, err := io.Copy(destination, source)
+	return nBytes, err
 }

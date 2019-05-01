@@ -135,7 +135,7 @@ func ZipFile(zipfilename string, path string, filename string) error {
 //AddFileToZip save writer to file
 func AddFileToZip(zipWriter *zip.Writer, path string, filename string) error {
 
-	fileToZip, err := os.Open(filename)
+	fileToZip, err := os.Open(filepath.Join(path,filename))
 	if err != nil {
 		return err
 	}

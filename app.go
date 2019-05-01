@@ -191,8 +191,10 @@ func makeTimeStamp(){
 	}
 }
 func copyZamane()(int64, error){
-	if (CheckFileExists(filepath.Join(currentSetting.Location,currentSetting.ZamaneFilename)) =="NotExists"){
-		return copy(filepath.Join(currentPath,currentSetting.ZamaneFilename),currentSetting.Location)
+	dst :=filepath.Join(currentSetting.Location,currentSetting.ZamaneFilename)
+	src :=filepath.Join(currentPath,currentSetting.ZamaneFilename)
+	if (CheckFileExists(dst) =="NotExists"){
+		return copy(src,dst)
 	} 
 	return 0,nil
 }

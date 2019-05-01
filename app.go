@@ -26,8 +26,6 @@ var (
 //Setting is configuration parameters
 type Setting struct {
 	Location string `json: "Location"`
-	Username string `json: "Username"`
-	Password string `json: "Password"`
 	ZamaneUsername string `json: "ZamaneUsername"`
 	ZamanePassword string `json: "ZamanePassword"`
 	ZamaneFilename string `json: "ZamaneFilename"`

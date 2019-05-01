@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"bytes"
+	"os/exec"
 	"io"
 	"io/ioutil"
 	"log"
@@ -26,6 +28,9 @@ type Setting struct {
 	Location string `json: "Location"`
 	Username string `json: "Username"`
 	Password string `json: "Password"`
+	ZamaneUsername string `json: "ZamaneUsername"`
+	ZamanePassword string `json: "ZamanePassword"`
+	ZamaneFilename string `json: "ZamaneFilename"`
 }
 
 //CheckFileExists returns Exists , NotExists , DontKnow
@@ -168,4 +173,51 @@ func serve(closesignal chan int) {
 	go cycle()
 	<-closesignal
 	finalize()
+}
+func makeTimeStamp(){
+	_,err:=copyZamane()
+	if (err!=nil){
+		elog.Warning(2,"Error occurred while copying "+ currentSetting.ZamaneFilename + "file." + err.Error())
+	}
+	cmd := exec.Command("java","-jar",currentSetting.ZamaneFilename,"-Z",yesterday+".zip","http://zd.kamusm.gov.tr","80",currentSetting.ZamaneUsername,currentSetting.ZamanePassword,"sha-256")
+	cmd.Path = currentSetting.Location
+	cmd.Dir = currentSetting.Location
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err = cmd.Run()
+	if err != nil {
+		elog.Warning(2,"Error occurred while executing java based jar file." + err.Error())
+	} else {
+		elog.Info(2,"Zamane command response as :"+ out.String())
+	}
+}
+func copyZamane()(int64, error){
+	if (CheckFileExists(filepath.Join(currentSetting.Location,currentSetting.ZamaneFilename)) =="NotExists"){
+		return copy(filepath.Join(currentPath,currentSetting.ZamaneFilename),currentSetting.Location)
+	} 
+	return 0,nil
+}
+func copy(src, dst string) (int64, error) {
+        sourceFileStat, err := os.Stat(src)
+        if err != nil {
+                return 0, err
+        }
+
+        if !sourceFileStat.Mode().IsRegular() {
+                return 0, fmt.Errorf("%s is not a regular file", src)
+        }
+
+        source, err := os.Open(src)
+        if err != nil {
+                return 0, err
+        }
+        defer source.Close()
+
+        destination, err := os.Create(dst)
+        if err != nil {
+                return 0, err
+        }
+        defer destination.Close()
+        nBytes, err := io.Copy(destination, source)
+        return nBytes, err
 }

@@ -179,7 +179,7 @@ func makeTimeStamp() {
 	if err != nil {
 		elog.Warning(2, "Error occurred while copying "+currentSetting.ZamaneFilename+"file."+err.Error())
 	}
-	cmd := exec.Command("java", "-jar", currentSetting.ZamaneFilename, "-Z", yesterdayZip, "http://zd.kamusm.gov.tr", "80", currentSetting.ZamaneUsername,"\""+ currentSetting.ZamanePassword+"\"", "sha-256")
+	cmd := exec.Command("java", "-jar", currentSetting.ZamaneFilename, "-Z", yesterdayZip, "http://zd.kamusm.gov.tr", "80", currentSetting.ZamaneUsername, currentSetting.ZamanePassword, "sha-256")
 	cmd.Dir = currentSetting.Location
 	var out bytes.Buffer
 	cmd.Stdout = &out

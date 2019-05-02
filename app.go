@@ -83,9 +83,9 @@ func cycle() {
 		todaySpentSecond = t.Hour()*3600 + t.Minute()*60 + t.Second()
 		restSecondToNewDay = (24*60*60 - todaySpentSecond) + 10
 		d = time.Duration(restSecondToNewDay) * time.Second
-		time.Sleep(d)
+		//time.Sleep(d)
 		elog.Info(1, fmt.Sprintln(d, " seconds for executing."))
-		//time.Sleep(time.Duration(10) * time.Second)
+		time.Sleep(time.Duration(10) * time.Second)
 		elog.Info(1, fmt.Sprintln("Program is executing ", t.Local()))
 		getSetting()
 		yesterday = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
@@ -179,7 +179,7 @@ func makeTimeStamp() {
 	if err != nil {
 		elog.Warning(2, "Error occurred while copying "+currentSetting.ZamaneFilename+"file."+err.Error())
 	}
-	cmd := exec.Command("java", "-jar", currentSetting.ZamaneFilename, "-Z", yesterdayZip, "http://zd.kamusm.gov.tr", "80", currentSetting.ZamaneUsername, currentSetting.ZamanePassword, "sha-256")
+	cmd := exec.Command("java", "-jar", currentSetting.ZamaneFilename, "-Z", yesterdayZip, "http://zd.kamusm.gov.tr", "80", currentSetting.ZamaneUsername,"\""+ currentSetting.ZamanePassword+"\"", "sha-256")
 	cmd.Dir = currentSetting.Location
 	var out bytes.Buffer
 	cmd.Stdout = &out
